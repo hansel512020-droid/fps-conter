@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Breach Point</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="crosshair">
+      <div class="ch ch-t"></div><div class="ch ch-b"></div>
+      <div class="ch ch-l"></div><div class="ch ch-r"></div>
+      <div id="hitmarker"></div>
+    </div>
+    <div id="damage-vignette"></div>
+    <div id="flash-overlay"></div>
+
+    <div id="top-bar">
+      <div class="team-score t-score"><span id="score-t">0</span></div>
+      <div id="round-timer">1:55</div>
+      <div class="team-score ct-score"><span id="score-ct">0</span></div>
+    </div>
+    <div id="round-msg"></div>
+
+    <div id="radar"><canvas id="radar-canvas" width="220" height="220"></canvas></div>
+    <div id="killfeed"></div>
+
+    <div id="bottom-left">
+      <div class="stat"><span class="icon">✚</span><span id="health">100</span></div>
+      <div class="stat"><span class="icon">⛨</span><span id="armor">0</span></div>
+    </div>
+    <div id="bottom-right">
+      <div id="money">$ 800</div>
+      <div id="weapon-name">RIFLE</div>
+      <div id="ammo"><span id="ammo-mag">30</span><span class="sep">/</span><span id="ammo-reserve">90</span></div>
+    </div>
+    <div id="inventory"></div>
+    <div id="hint"></div>
+
+    <div id="scoreboard" class="hidden">
+      <div class="sb-title">MARCADOR</div>
+      <div class="sb-cols">
+        <div class="sb-team sb-t"><div class="sb-head">ATACANTES</div><table><thead><tr><th>Nombre</th><th>B</th><th>M</th><th>Daño</th></tr></thead><tbody id="sb-t-body"></tbody></table></div>
+        <div class="sb-team sb-ct"><div class="sb-head">DEFENSORES</div><table><thead><tr><th>Nombre</th><th>B</th><th>M</th><th>Daño</th></tr></thead><tbody id="sb-ct-body"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu -->
+  <div id="menu">
+    <div class="menu-bg"></div>
+    <div class="menu-panel">
+      <h1>BREACH<span>POINT</span></h1>
+      <p class="subtitle">FPS táctico por rondas · Atacantes vs Defensores</p>
+      <div class="menu-row">
+        <label>Equipo</label>
+        <div class="seg">
+          <button data-team="T" class="active">Atacantes</button>
+          <button data-team="CT">Defensores</button>
+        </div>
+      </div>
+      <div class="menu-row">
+        <label>Sensibilidad <span id="sens-val">1.0</span></label>
+        <input id="sens" type="range" min="0.2" max="3" step="0.05" value="1" />
+      </div>
+      <div class="menu-row">
+        <label>Dificultad de bots</label>
+        <div class="seg" id="difficulty">
+          <button data-diff="easy">Fácil</button>
+          <button data-diff="normal" class="active">Normal</button>
+          <button data-diff="hard">Difícil</button>
+        </div>
+      </div>
+      <button id="play-btn" class="primary">JUGAR</button>
+      <div class="controls">
+        <div><b>WASD</b> mover</div><div><b>Shift</b> caminar</div><div><b>Ctrl</b> agacharse</div>
+        <div><b>Espacio</b> saltar</div><div><b>R</b> recargar</div><div><b>1 2 3</b> armas</div>
+        <div><b>Tab</b> marcador</div><div><b>Esc</b> menú</div><div><b>Clic</b> disparar</div>
+      </div>
+      <p class="loading" id="loading">Cargando…</p>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
