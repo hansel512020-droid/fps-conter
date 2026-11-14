@@ -5,11 +5,11 @@ const REST = {
   rifle: { pos: [0.16, -0.17, -0.30], rot: [0, 0.03, 0] },
   carbine: { pos: [0.16, -0.17, -0.30], rot: [0, 0.03, 0] },
   smg: { pos: [0.15, -0.16, -0.28], rot: [0, 0.03, 0] },
-  pistol: { pos: [0.13, -0.15, -0.30], rot: [0, 0.0, 0] },
-  knife: { pos: [0.16, -0.19, -0.26], rot: [0.1, -0.5, 0.3] },
+  pistol: { pos: [0.14, -0.12, -0.28], rot: [0, 0.0, 0] },
+  knife: { pos: [0.15, -0.12, -0.24], rot: [0.35, -1.1, 0.55] },
 };
 
-const SLEEVE = { T: 0x8a7446, CT: 0x2f4a6e };
+const SLEEVE = { T: 0x4a4030, CT: 0x22303f };
 
 /**
  * First-person weapon rendered in its own scene/camera (no clipping with walls).
@@ -55,25 +55,50 @@ export class ViewModel {
   }
 
   _buildArms() {
-    const sleeve = new THREE.MeshStandardMaterial({ color: SLEEVE[this.team], roughness: 0.9 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xd6a57c, roughness: 0.6 });
-    const glove = new THREE.MeshStandardMaterial({ color: 0x1f1f22, roughness: 0.8 });
-    // right arm: from grip down-right toward the camera
-    const ra = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.085, 0.42), sleeve);
-    ra.position.set(0.02, -0.17, 0.28);
-    ra.rotation.set(0.35, 0.15, 0);
-    const rh = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.1, 0.09), glove);
-    rh.position.set(0.0, -0.1, 0.07);
-    rh.rotation.set(-0.3, 0, 0);
-    // left arm: from handguard toward the camera on the left
-    const la = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.085, 0.5), sleeve);
-    la.position.set(-0.17, -0.2, -0.05);
-    la.rotation.set(0.25, -0.55, 0);
-    const lh = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.09, 0.1), glove);
-    lh.position.set(-0.01, -0.07, -0.32);
-    lh.rotation.set(0, 0.1, 0.3);
-    this.arms.add(ra, rh, la, lh);
-    this.armsParts = { ra, rh, la, lh, skin };
+    this.armMats = {
+      sleeve: new THREE.MeshStandardMaterial({ color: SLEEVE[this.team], roughness: 0.9 }),
+      glove: new THREE.MeshStandardMaterial({ color: 0x1c1d20, roughness: 0.75 }),
+    };
+  }
+
+  /** Builds a limb segment between two points in rig space. */
+  _limb(from, to, thick, mat) {
+    const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to);
+    const len = a.distanceTo(b);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(thick, thick, len), mat);
+    m.position.copy(a).lerp(b, 0.5);
+    m.lookAt(b);
+    return m;
+  }
+
+  _hand(at, size, mat, rot = [0, 0, 0]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(...size), mat);
+    m.position.set(...at);
+    m.rotation.set(...rot);
+    return m;
+  }
+
+  _buildArmsFor(key) {
+    this.arms.clear();
+    const { sleeve, glove } = this.armMats;
+    const parts = [];
+    if (key === 'pistol') {
+      parts.push(this._hand([0.0, -0.085, 0.035], [0.075, 0.1, 0.07], glove, [0.1, 0, 0]));
+      parts.push(this._limb([0.02, -0.12, 0.06], [0.24, -0.42, 0.42], 0.08, sleeve));
+      parts.push(this._hand([-0.03, -0.1, 0.02], [0.06, 0.08, 0.07], glove, [0, 0.3, 0.2]));
+      parts.push(this._limb([-0.04, -0.13, 0.05], [-0.2, -0.42, 0.4], 0.08, sleeve));
+    } else if (key === 'knife') {
+      parts.push(this._hand([0.0, -0.01, 0.05], [0.07, 0.08, 0.1], glove));
+      parts.push(this._limb([0.02, -0.05, 0.08], [0.24, -0.42, 0.42], 0.08, sleeve));
+    } else {
+      // rifles / smg: right hand on the grip, left hand on the handguard
+      parts.push(this._hand([0.0, -0.1, 0.07], [0.075, 0.11, 0.08], glove, [-0.25, 0, 0]));
+      parts.push(this._limb([0.03, -0.19, 0.13], [0.26, -0.44, 0.4], 0.085, sleeve));
+      const hz = key === 'smg' ? -0.2 : -0.36;
+      parts.push(this._hand([0.0, -0.06, hz], [0.075, 0.085, 0.1], glove, [0, 0, 0.25]));
+      parts.push(this._limb([-0.02, -0.1, hz + 0.02], [-0.22, -0.44, 0.36], 0.085, sleeve));
+    }
+    for (const p of parts) { p.castShadow = false; this.arms.add(p); }
   }
 
   setWeapon(key) {
@@ -87,12 +112,7 @@ export class ViewModel {
     this.restPos = new THREE.Vector3(...rest.pos);
     this.restRot = new THREE.Euler(...rest.rot);
     this.muzzle = this.weaponMesh.getObjectByName('muzzle');
-    // arms placement differs for pistol/knife
-    const { la, lh } = this.armsParts;
-    if (key === 'pistol') { la.position.set(-0.08, -0.17, 0.02); la.rotation.set(0.3, -0.3, 0); lh.position.set(-0.03, -0.08, -0.05); }
-    else if (key === 'knife') { la.visible = false; lh.visible = false; }
-    else { la.position.set(-0.17, -0.2, -0.05); la.rotation.set(0.25, -0.55, 0); lh.position.set(-0.01, -0.07, -0.32); }
-    if (key !== 'knife') { la.visible = true; lh.visible = true; }
+    this._buildArmsFor(key);
   }
 
   resize(aspect) { this.camera.aspect = aspect; this.camera.updateProjectionMatrix(); }
