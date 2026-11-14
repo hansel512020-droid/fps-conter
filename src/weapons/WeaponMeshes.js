@@ -39,14 +39,14 @@ export function buildWeaponMesh(key) {
   switch (key) {
     case 'rifle': {
       g.add(box(0.075, 0.1, 0.5, 'metal', 0, 0, -0.05));            // receiver
-      g.add(box(0.07, 0.075, 0.26, 'polymer', 0, -0.005, -0.42));    // handguard
+      g.add(box(0.07, 0.075, 0.26, 'wood', 0, -0.005, -0.42));       // handguard
       g.add(cyl(0.013, 0.34, 'steel', 0, 0.015, -0.68));             // barrel
       g.add(box(0.03, 0.05, 0.05, 'metal', 0, 0.065, -0.52));        // front sight
       g.add(box(0.05, 0.05, 0.08, 'metal', 0, 0.07, 0.05));          // rear sight / carry
       g.add(box(0.05, 0.22, 0.08, 'metal', 0, -0.14, -0.2, 0.18));   // magazine
       g.add(box(0.045, 0.13, 0.06, 'polymer', 0, -0.1, 0.06, -0.3)); // grip
-      g.add(box(0.05, 0.07, 0.3, 'polymer', 0, -0.02, 0.33));        // stock
-      g.add(box(0.06, 0.1, 0.05, 'polymer', 0, -0.035, 0.46));       // buttpad
+      g.add(box(0.05, 0.07, 0.3, 'wood', 0, -0.02, 0.33));           // stock
+      g.add(box(0.06, 0.1, 0.05, 'dark', 0, -0.035, 0.46));          // buttpad
       muzzle.position.set(0, 0.015, -0.86);
       break;
     }
@@ -86,11 +86,15 @@ export function buildWeaponMesh(key) {
       break;
     }
     case 'knife': {
-      g.add(box(0.025, 0.035, 0.11, 'polymer', 0, 0, 0.04));         // handle
-      const blade = box(0.004, 0.035, 0.17, 'steel', 0, 0.005, -0.1);
+      g.add(box(0.028, 0.038, 0.13, 'polymer', 0, 0, 0.06));         // handle
+      g.add(box(0.03, 0.04, 0.02, 'metal', 0, 0, 0.13));             // pommel
+      const blade = box(0.006, 0.046, 0.22, 'steel', 0, 0.006, -0.12);
       g.add(blade);
-      g.add(box(0.03, 0.05, 0.012, 'metal', 0, 0, -0.02));           // guard
-      muzzle.position.set(0, 0, -0.2);
+      const tip = box(0.006, 0.03, 0.05, 'steel', 0, 0.012, -0.25, 0, 0, 0);
+      tip.rotation.x = 0.35;
+      g.add(tip);
+      g.add(box(0.034, 0.06, 0.014, 'metal', 0, 0, -0.01));          // guard
+      muzzle.position.set(0, 0, -0.27);
       break;
     }
   }

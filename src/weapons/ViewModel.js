@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import { buildWeaponMesh } from './WeaponMeshes.js';
 
 const REST = {
-  rifle: { pos: [0.16, -0.17, -0.30], rot: [0, 0.03, 0] },
-  carbine: { pos: [0.16, -0.17, -0.30], rot: [0, 0.03, 0] },
-  smg: { pos: [0.15, -0.16, -0.28], rot: [0, 0.03, 0] },
+  rifle: { pos: [0.15, -0.15, -0.30], rot: [0.03, 0.16, -0.05] },
+  carbine: { pos: [0.15, -0.15, -0.30], rot: [0.03, 0.16, -0.05] },
+  smg: { pos: [0.14, -0.14, -0.28], rot: [0.03, 0.16, -0.05] },
   pistol: { pos: [0.14, -0.12, -0.28], rot: [0, 0.0, 0] },
-  knife: { pos: [0.15, -0.12, -0.24], rot: [0.35, -1.1, 0.55] },
+  knife: { pos: [0.17, -0.13, -0.27], rot: [0.25, -0.75, 0.35] },
 };
 
 const SLEEVE = { T: 0x4a4030, CT: 0x22303f };
@@ -21,9 +21,9 @@ export class ViewModel {
     this.scene.add(this.camera);
     this.team = team;
 
-    this.hemi = new THREE.HemisphereLight(0xcfe3ff, 0x4a4030, 1.1);
+    this.hemi = new THREE.HemisphereLight(0xcfe3ff, 0x4a4030, 0.55);
     this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+    this.sun = new THREE.DirectionalLight(0xfff1dc, 1.5);
     this.sun.position.set(2, 4, 1);
     this.scene.add(this.sun);
     this.flashLight = new THREE.PointLight(0xffc070, 0, 3, 2);
@@ -88,8 +88,8 @@ export class ViewModel {
       parts.push(this._hand([-0.03, -0.1, 0.02], [0.06, 0.08, 0.07], glove, [0, 0.3, 0.2]));
       parts.push(this._limb([-0.04, -0.13, 0.05], [-0.2, -0.42, 0.4], 0.08, sleeve));
     } else if (key === 'knife') {
-      parts.push(this._hand([0.0, -0.01, 0.05], [0.07, 0.08, 0.1], glove));
-      parts.push(this._limb([0.02, -0.05, 0.08], [0.24, -0.42, 0.42], 0.08, sleeve));
+      parts.push(this._hand([0.0, -0.015, 0.07], [0.06, 0.07, 0.1], glove));
+      parts.push(this._limb([0.02, -0.06, 0.12], [0.24, -0.42, 0.44], 0.08, sleeve));
     } else {
       // rifles / smg: right hand on the grip, left hand on the handguard
       parts.push(this._hand([0.0, -0.1, 0.07], [0.075, 0.11, 0.08], glove, [-0.25, 0, 0]));
