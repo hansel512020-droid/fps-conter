@@ -224,6 +224,205 @@ export function metalMaterial() {
   return cache.metal;
 }
 
+export function asphaltMaterial() {
+  if (cache.asphalt) return cache.asphalt;
+  const tex = buildSurface({
+    size: 512, seed: 91, normalStrength: 2.5,
+    shade(u, v, n, n2) {
+      const base = 0.27 + (n(1, 1) - 0.5) * 0.12 + (n(6, 6, 4) - 0.5) * 0.07;
+      // cracks: thin dark lines where a noise field crosses a threshold
+      const c1 = n2(1.2, 1.2, 3);
+      const crack = Math.abs(c1 - 0.5) < 0.0035 && n(0.7, 0.7, 2) > 0.55 ? 1 : 0;
+      const patch = Math.pow(n2(1, 1, 2), 3) * 0.12; // lighter worn patches
+      const c = base - crack * 0.1 + patch;
+      return [c * 0.98, c, c * 1.03, c - crack * 0.6, 0.9 - patch * 0.3];
+    },
+  });
+  cache.asphalt = new THREE.MeshStandardMaterial({
+    map: tex.map, normalMap: tex.normalMap, roughnessMap: tex.roughnessMap, roughness: 1, metalness: 0.0, normalScale: new THREE.Vector2(0.7, 0.7),
+  });
+  cache.asphalt.userData.tile = 6;
+  return cache.asphalt;
+}
+
+export function brickMaterial() {
+  if (cache.brick) return cache.brick;
+  const tex = buildSurface({
+    size: 512, seed: 131, normalStrength: 3,
+    shade(u, v, n, n2) {
+      const rows = 16, cols = 8;
+      const row = Math.floor(v * rows);
+      const uu = (u + (row % 2) * 0.5 / cols * 2) % 1;
+      const bu = (uu * cols) % 1, bv = (v * rows) % 1;
+      const mortar = bu < 0.07 || bv < 0.12 ? 1 : 0;
+      const brickTone = 0.5 + (n2(cols * 2, rows * 2, 1) - 0.5) * 0.25 + (n(8, 8, 3) - 0.5) * 0.08;
+      const r = mortar ? 0.6 : brickTone * 1.05, g = mortar ? 0.58 : brickTone * 0.62, b = mortar ? 0.54 : brickTone * 0.5;
+      const grime = Math.pow(n2(1, 1, 3), 2.5) * 0.25;
+      return [r - grime, g - grime, b - grime, mortar ? 0.2 : 0.7 + (n(16, 16, 2) - 0.5) * 0.1, mortar ? 0.95 : 0.8];
+    },
+  });
+  cache.brick = new THREE.MeshStandardMaterial({
+    map: tex.map, normalMap: tex.normalMap, roughnessMap: tex.roughnessMap, roughness: 1, metalness: 0, normalScale: new THREE.Vector2(0.8, 0.8),
+  });
+  cache.brick.userData.tile = 4;
+  return cache.brick;
+}
+
+export function panelMaterial() {
+  if (cache.panel) return cache.panel;
+  const tex = buildSurface({
+    size: 512, seed: 171, normalStrength: 3,
+    shade(u, v, n, n2) {
+      // precast concrete panels with chamfered joints and tie holes
+      const pu = (u * 2) % 1, pv = (v * 2) % 1;
+      const joint = Math.min(pu, 1 - pu) < 0.012 || Math.min(pv, 1 - pv) < 0.012 ? 1 : 0;
+      const hole = (Math.hypot(pu - 0.15, pv - 0.15) < 0.025 || Math.hypot(pu - 0.85, pv - 0.15) < 0.025 || Math.hypot(pu - 0.15, pv - 0.85) < 0.025 || Math.hypot(pu - 0.85, pv - 0.85) < 0.025) ? 1 : 0;
+      const base = 0.5 + (n(1, 1) - 0.5) * 0.14 + (n(6, 6, 3) - 0.5) * 0.05;
+      const streak = Math.pow(n2(6, 0.6, 2), 3) * 0.18; // vertical rain streaks
+      const c = base - joint * 0.3 - hole * 0.25 - streak;
+      return [c * 0.98, c * 0.99, c, c - joint * 0.6 - hole * 0.5, 0.85];
+    },
+  });
+  cache.panel = new THREE.MeshStandardMaterial({
+    map: tex.map, normalMap: tex.normalMap, roughnessMap: tex.roughnessMap, roughness: 1, metalness: 0, normalScale: new THREE.Vector2(0.6, 0.6),
+  });
+  cache.panel.userData.tile = 4;
+  return cache.panel;
+}
+
+export function trimMaterial() {
+  if (cache.trim) return cache.trim;
+  const tex = buildSurface({
+    size: 256, seed: 201, normalStrength: 2,
+    shade(u, v, n, n2) {
+      const c = 0.24 + (n(1, 1) - 0.5) * 0.08 + (n(6, 6, 3) - 0.5) * 0.05;
+      const grime = Math.pow(n2(2, 2, 3), 2) * 0.1;
+      return [c - grime, c - grime, c * 1.05 - grime, c, 0.9];
+    },
+  });
+  cache.trim = new THREE.MeshStandardMaterial({ map: tex.map, normalMap: tex.normalMap, roughness: 0.95, metalness: 0.02 });
+  cache.trim.userData.tile = 3;
+  return cache.trim;
+}
+
+export function containerMaterial(index = 0) {
+  const key = 'container' + index;
+  if (cache[key]) return cache[key];
+  const palettes = [[0.42, 0.2, 0.15], [0.16, 0.28, 0.45], [0.2, 0.32, 0.2], [0.5, 0.38, 0.14]];
+  const [pr, pg, pb] = palettes[index % palettes.length];
+  const tex = buildSurface({
+    size: 256, seed: 231 + index * 17, normalStrength: 3.5,
+    shade(u, v, n, n2) {
+      // vertical corrugation
+      const ridge = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 12);
+      const paint = 0.9 + (n(2, 2, 3) - 0.5) * 0.15;
+      const rust = Math.pow(n2(1.5, 1.5, 4), 3.5) * 0.9;
+      const scratch = Math.pow(n2(14, 1, 2), 8) * 0.3;
+      const edge = Math.min(u, 1 - u, v, 1 - v) < 0.04 ? 1 : 0;
+      const r = (pr * paint + rust * 0.35 + scratch) * (1 - edge * 0.25), g = (pg * paint + rust * 0.15 + scratch) * (1 - edge * 0.25), b = (pb * paint + rust * 0.05 + scratch) * (1 - edge * 0.25);
+      return [r, g, b, edge ? 0.9 : 0.3 + ridge * 0.5, 0.55 + rust * 0.4 - scratch * 0.5];
+    },
+  });
+  cache[key] = new THREE.MeshStandardMaterial({
+    map: tex.map, normalMap: tex.normalMap, roughnessMap: tex.roughnessMap, roughness: 1, metalness: 0.45, normalScale: new THREE.Vector2(0.8, 0.8),
+  });
+  cache[key].userData.tile = 2;
+  return cache[key];
+}
+
+export function barrelMaterial(index = 0) {
+  const key = 'barrel' + index;
+  if (cache[key]) return cache[key];
+  const palettes = [[0.2, 0.3, 0.45], [0.45, 0.42, 0.15], [0.28, 0.3, 0.3]];
+  const [pr, pg, pb] = palettes[index % palettes.length];
+  const tex = buildSurface({
+    size: 128, seed: 301 + index * 13, normalStrength: 3,
+    shade(u, v, n, n2) {
+      const ring = Math.abs(v - 0.33) < 0.025 || Math.abs(v - 0.66) < 0.025 ? 1 : 0;
+      const rust = Math.pow(n2(2, 2, 4), 3) * 0.8;
+      const paint = 0.95 + (n(3, 3, 3) - 0.5) * 0.15;
+      return [pr * paint + rust * 0.4, pg * paint + rust * 0.15, pb * paint + rust * 0.05, 0.5 + ring * 0.5, 0.5 + rust * 0.45];
+    },
+  });
+  cache[key] = new THREE.MeshStandardMaterial({ map: tex.map, normalMap: tex.normalMap, roughnessMap: tex.roughnessMap, roughness: 1, metalness: 0.5 });
+  cache[key].userData.tile = 1;
+  return cache[key];
+}
+
+export function sandbagMaterial() {
+  if (cache.sandbag) return cache.sandbag;
+  const tex = buildSurface({
+    size: 128, seed: 401, normalStrength: 2,
+    shade(u, v, n, n2) {
+      const weave = 0.5 + 0.5 * Math.sin(u * 200) * Math.sin(v * 200);
+      const c = 0.55 + (n(2, 2, 3) - 0.5) * 0.12 + weave * 0.04;
+      return [c * 1.0, c * 0.92, c * 0.72, c, 0.95];
+    },
+  });
+  cache.sandbag = new THREE.MeshStandardMaterial({ map: tex.map, normalMap: tex.normalMap, roughness: 1 });
+  cache.sandbag.userData.tile = 1;
+  return cache.sandbag;
+}
+
+export function buildingMaterial(index = 0) {
+  const key = 'building' + index;
+  if (cache[key]) return cache[key];
+  const tones = [[0.42, 0.44, 0.48], [0.5, 0.46, 0.4], [0.36, 0.4, 0.46], [0.55, 0.52, 0.47]];
+  const [tr, tg, tb] = tones[index % tones.length];
+  const tex = buildSurface({
+    size: 256, seed: 501 + index * 7, normalStrength: 1.5,
+    shade(u, v, n, n2) {
+      // window grid
+      const wu = (u * 10) % 1, wv = (v * 8) % 1;
+      const win = wu > 0.3 && wu < 0.8 && wv > 0.35 && wv < 0.8 ? 1 : 0;
+      const lit = n2(10, 8, 1) > 0.78 ? 1 : 0;
+      const base = 1 + (n(2, 2, 3) - 0.5) * 0.2;
+      const r = win ? (lit ? 0.9 : 0.18) : tr * base, g = win ? (lit ? 0.8 : 0.2) : tg * base, b = win ? (lit ? 0.55 : 0.26) : tb * base;
+      return [r, g, b, win ? 0.3 : 0.6, win ? 0.3 : 0.85];
+    },
+  });
+  cache[key] = new THREE.MeshStandardMaterial({ map: tex.map, normalMap: tex.normalMap, roughnessMap: tex.roughnessMap, roughness: 1, metalness: 0.05 });
+  cache[key].userData.tile = 10;
+  return cache[key];
+}
+
+/** Soft blob texture for floor stains and clouds. */
+export function softBlobTexture(seed = 7, size = 128, holes = 10) {
+  const c = makeCanvas(size);
+  const ctx = c.getContext('2d');
+  const rnd = mulberry32(seed);
+  const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.05, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.6)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+  ctx.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < holes; i++) {
+    const x = rnd() * size, y = rnd() * size, r = size * (0.06 + rnd() * 0.14);
+    const gg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gg.addColorStop(0, 'rgba(0,0,0,0.5)'); gg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gg; ctx.fillRect(0, 0, size, size);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+export function hazardTexture() {
+  const c = makeCanvas(128);
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#e8b518'; ctx.fillRect(0, 0, 128, 128);
+  ctx.fillStyle = '#1b1b1b';
+  for (let i = -2; i < 6; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * 32, 128); ctx.lineTo(i * 32 + 32, 128); ctx.lineTo(i * 32 + 64, 0); ctx.lineTo(i * 32 + 32, 0); ctx.closePath(); ctx.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export function groundOutsideMaterial() {
   if (cache.ground) return cache.ground;
   const tex = buildSurface({

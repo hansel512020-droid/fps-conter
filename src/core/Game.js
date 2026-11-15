@@ -789,6 +789,7 @@ export class Game {
     this.buyMenu.update(dt);
 
     this.effects.update(dt);
+    this.map.update(dt, this.time);
     const fwd = this.camera.getWorldDirection(this._tmp);
     this.audio.setListener(this.camera.position, fwd, new THREE.Vector3(0, 1, 0));
     this.hud.update(dt);

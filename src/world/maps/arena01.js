@@ -82,12 +82,25 @@ export function buildArena01() {
   [[24, 3], [26, 2], [28, 3], [30, 2], [32, 3], [25, 4], [31, 4], [27, 4]].forEach(([x, z]) => m.spawn('CT', x, z, PI));
   [[21, 39], [24, 40], [27, 39], [30, 40], [33, 39], [36, 40], [23, 41], [31, 41]].forEach(([x, z]) => m.spawn('T', x, z, 0));
 
-  // --- Decorative props (lamps etc.)
+  // --- Decorative props
   m.prop('lamp', 27, 12); m.prop('lamp', 28, 31);
   m.prop('lamp', 47, 10); m.prop('lamp', 8, 10);
   m.prop('lamp', 49, 30); m.prop('lamp', 6, 30);
   m.prop('lamp', 20, 15); m.prop('lamp', 36, 15);
   m.prop('lamp', 28, 38); m.prop('lamp', 27, 3);
+  // cover props (block movement / bullets)
+  m.prop('barrels', 51, 6); m.prop('barrels', 41, 11); m.prop('barrels', 4, 11); m.prop('barrels', 14, 6);
+  m.prop('barrels', 23, 18); m.prop('barrels', 32, 25); m.prop('barrels', 48, 30); m.prop('barrels', 6, 24);
+  m.prop('sandbags', 44, 9, { axis: 'z' }); m.prop('sandbags', 11, 9, { axis: 'z' });
+  m.prop('sandbags', 27, 16, { axis: 'x' }); m.prop('sandbags', 28, 26, { axis: 'x' });
+  m.prop('pallets', 19, 37, { count: 4 }); m.prop('pallets', 36, 37, { count: 2 }); m.prop('pallets', 24, 1, { count: 3 });
+  m.prop('pallets', 50, 36, { count: 3 }); m.prop('pallets', 4, 36, { count: 5 });
+  m.prop('tank', 48, 5);
+  // wall dressing
+  m.prop('pipe', 22, 20, { side: 'w' }); m.prop('pipe', 33, 22, { side: 'e' }); m.prop('pipe', 46, 22, { side: 'w' });
+  m.prop('pipe', 9, 18, { side: 'e' }); m.prop('pipe', 40, 6, { side: 'w' }); m.prop('pipe', 15, 6, { side: 'e' });
+  m.prop('ac', 25, 36, { side: 'n' }); m.prop('ac', 30, 36, { side: 'n' }); m.prop('ac', 30, 1, { side: 'n' });
+  m.prop('ac', 52, 20, { side: 'e' }); m.prop('ac', 3, 30, { side: 'w' }); m.prop('ac', 44, 16, { side: 's' });
 
   return m;
 }
