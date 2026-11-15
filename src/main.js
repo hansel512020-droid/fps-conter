@@ -3,32 +3,58 @@ import { Game } from './core/Game.js';
 
 const $ = (id) => document.getElementById(id);
 
+const STORAGE_KEY = 'breachpoint.settings.v1';
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch { return {}; }
+}
+function saveSettings(s) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ }
+}
+
+const saved = loadSettings();
+const prefs = {
+  team: saved.team || 'T',
+  difficulty: saved.difficulty || 'normal',
+  sensitivity: saved.sensitivity ?? 1,
+  quality: saved.quality || 'medium',
+  fov: saved.fov ?? 78,
+  volume: saved.volume ?? 0.8,
+};
+
 const menu = $('menu');
 const playBtn = $('play-btn');
 const loading = $('loading');
-const sens = $('sens');
-const sensVal = $('sens-val');
-let team = 'T';
-let difficulty = 'normal';
 
-for (const b of document.querySelectorAll('[data-team]')) {
-  b.addEventListener('click', () => {
-    team = b.dataset.team;
-    document.querySelectorAll('[data-team]').forEach((x) => x.classList.toggle('active', x === b));
+function bindSeg(attr, key) {
+  const btns = document.querySelectorAll(`[data-${attr}]`);
+  const sync = () => btns.forEach((x) => x.classList.toggle('active', x.dataset[attr] === prefs[key]));
+  btns.forEach((b) => b.addEventListener('click', () => {
+    if (b.disabled) return;
+    prefs[key] = b.dataset[attr];
+    sync();
+    saveSettings(prefs);
+    if (key === 'quality' && game) game.applySettings({ quality: prefs.quality });
+  }));
+  sync();
+}
+function bindRange(id, key, labelId, fmt) {
+  const el = $(id), label = $(labelId);
+  el.value = prefs[key];
+  label.textContent = fmt(prefs[key]);
+  el.addEventListener('input', () => {
+    prefs[key] = Number(el.value);
+    label.textContent = fmt(prefs[key]);
+    saveSettings(prefs);
+    if (game && key !== 'sensitivity') game.applySettings({ [key]: prefs[key] });
+    if (game && key === 'sensitivity') game.settings.sensitivity = prefs.sensitivity;
   });
 }
-for (const b of document.querySelectorAll('[data-diff]')) {
-  b.addEventListener('click', () => {
-    difficulty = b.dataset.diff;
-    document.querySelectorAll('[data-diff]').forEach((x) => x.classList.toggle('active', x === b));
-  });
-}
-sens.addEventListener('input', () => { sensVal.textContent = Number(sens.value).toFixed(2); });
 
-playBtn.disabled = true;
 let game = null;
+playBtn.disabled = true;
 try {
   game = new Game($('game'));
+  game.applySettings({ quality: prefs.quality, fov: prefs.fov, volume: prefs.volume });
   loading.textContent = 'Listo';
   playBtn.disabled = false;
 } catch (err) {
@@ -36,11 +62,18 @@ try {
   console.error(err);
 }
 
+bindSeg('team', 'team');
+bindSeg('diff', 'difficulty');
+bindSeg('quality', 'quality');
+bindRange('sens', 'sensitivity', 'sens-val', (v) => Number(v).toFixed(2));
+bindRange('fov', 'fov', 'fov-val', (v) => String(Math.round(v)));
+bindRange('vol', 'volume', 'vol-val', (v) => String(Math.round(v * 100)));
+
 function showMenu() {
   menu.classList.remove('hidden');
   if (game && game.state === 'paused') {
     playBtn.textContent = 'CONTINUAR';
-    loading.textContent = 'Partida en pausa · Esc o clic en el juego para volver';
+    loading.textContent = 'Partida en pausa · pulsa CONTINUAR para volver';
   }
 }
 
@@ -48,22 +81,18 @@ playBtn.addEventListener('click', () => {
   if (!game) return;
   menu.classList.add('hidden');
   if (game.state === 'paused') {
-    game.settings.sensitivity = Number(sens.value);
     game.resume();
   } else {
-    game.start({ team, difficulty, sensitivity: Number(sens.value) });
+    game.start({ team: prefs.team, difficulty: prefs.difficulty, sensitivity: prefs.sensitivity });
     playBtn.textContent = 'CONTINUAR';
     for (const b of document.querySelectorAll('[data-team],[data-diff]')) b.disabled = true;
   }
 });
 
-game && (game.onMenuRequest = showMenu);
+if (game) game.onMenuRequest = showMenu;
 
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'Escape' && game && game.state === 'playing') {
-    // pointer lock release triggers pause via onLockChange
-    game.input.releaseLock();
-  }
+  if (e.code === 'Escape' && game && game.state === 'playing' && !game.buyMenu.open) game.input.releaseLock();
 });
 
 window.__game = game;

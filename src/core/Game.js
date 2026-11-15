@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Input } from './Input.js';
+import { PostFX, QUALITY } from './PostFX.js';
 import { AudioEngine } from './Audio.js';
 import { Bomb } from './Bomb.js';
 import { GameMap } from '../world/GameMap.js';
@@ -28,7 +29,7 @@ const END_TIME = 6;
 const HALF_ROUNDS = 12;
 const WIN_ROUNDS = 13;
 const DEG = Math.PI / 180;
-const BASE_FOV = 78;
+const DEFAULT_FOV = 78;
 
 const ECON = { winElim: 3250, winBomb: 3500, winDefuse: 3500, lossBase: 1400, lossStep: 500, lossMax: 3400, plantTeam: 800, plant: 300, defuse: 300, max: 16000, start: 800 };
 
@@ -51,13 +52,14 @@ export class Game {
     pmrem.dispose();
     this.scene.environment = this.envMap;
     this.scene.environmentIntensity = 0.45;
-    this.camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.05, 400);
+    this.camera = new THREE.PerspectiveCamera(DEFAULT_FOV, 1, 0.05, 400);
     this.scene.add(this.camera);
 
     this.time = 0;
     this.state = 'menu';
     // ctReactionScale: defenders holding an angle react a bit faster (keeps bot-vs-bot rounds balanced)
-    this.settings = { team: 'T', difficulty: 'normal', sensitivity: 1, friendlyFire: false, ctReactionScale: 0.6 };
+    this.settings = { team: 'T', difficulty: 'normal', sensitivity: 1, friendlyFire: false, ctReactionScale: 0.6, quality: 'medium', fov: DEFAULT_FOV, volume: 0.8 };
+    this.baseFov = DEFAULT_FOV;
     this.stats = { shots: 0, grenades: 0, plants: 0, defuses: 0, explosions: 0, pickups: 0 };
     this.characters = [];
     this.bots = [];
@@ -79,7 +81,7 @@ export class Game {
     this.teamPlan = { T: 'A' };
     this.intel = { T: { site: null, time: -100 }, CT: { site: null, time: -100 } };
     this.matchOver = false;
-    this.targetFov = BASE_FOV;
+    this.targetFov = this.baseFov;
 
     this._setupLights();
     this._setupSky();
@@ -95,6 +97,8 @@ export class Game {
     this.bomb = new Bomb(this);
     this.buyMenu = new BuyMenu(this);
     this.viewModel = null;
+    this.post = new PostFX(this.renderer, this.scene, this.camera);
+    this.applySettings({});
 
     this._tmp = new THREE.Vector3(); this._tmp2 = new THREE.Vector3(); this._tmp3 = new THREE.Vector3();
     this.onMenuRequest = null;
@@ -132,7 +136,7 @@ export class Game {
     const mat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: {
-        top: { value: new THREE.Color(0x4f7fc6) }, horizon: { value: new THREE.Color(0xd9e3ec) },
+        top: { value: new THREE.Color(0x1f4f9e) }, horizon: { value: new THREE.Color(0xa9bfd6) },
         sunDir: { value: new THREE.Vector3(55, 90, 35).normalize() }, sunColor: { value: new THREE.Color(0xfff0d0) },
       },
       vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
@@ -145,6 +149,8 @@ export class Game {
           c += sunColor * (pow(s, 600.0) * 2.0 + pow(s, 12.0) * 0.18);
           c = mix(c, horizon * 0.9, smoothstep(0.0, -0.1, vDir.y));
           gl_FragColor = vec4(c, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
         }`,
     });
     this.sky = new THREE.Mesh(geo, mat);
@@ -158,11 +164,36 @@ export class Game {
     this.camera.updateProjectionMatrix();
     if (this.viewModel) this.viewModel.resize(w / h);
     this.effects.setPointScale(h);
+    this.post?.setSize(w, h);
+  }
+
+  /** Applies graphics / audio / view settings; safe to call at any time. */
+  applySettings(changes) {
+    Object.assign(this.settings, changes);
+    const st = this.settings;
+    const preset = QUALITY[st.quality] || QUALITY.medium;
+    if (preset !== this._preset) {
+      this._preset = preset;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, preset.pixelRatio));
+      this.renderer.shadowMap.type = preset.softShadows ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+      this.sun.shadow.mapSize.set(preset.shadowMap, preset.shadowMap);
+      if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
+      this.scene.traverse((o) => { if (o.material && !Array.isArray(o.material)) o.material.needsUpdate = true; });
+      this.post.configure(preset);
+      this.resize();
+    }
+    this.baseFov = st.fov || DEFAULT_FOV;
+    if (this.state !== 'playing') this.camera.fov = this.baseFov;
+    this.targetFov = this.baseFov;
+    this.audio.volume = st.volume ?? 0.8;
+    if (this.audio.master) this.audio.master.gain.value = this.audio.volume;
   }
 
   /* ---------- match control ---------- */
   start(settings) {
     Object.assign(this.settings, settings);
+    this.camera.fov = this.baseFov;
+    this.camera.updateProjectionMatrix();
     this.audio.init();
     this.audio.resume();
     for (const c of this.characters) if (c.model) this.scene.remove(c.model.root);
@@ -237,7 +268,7 @@ export class Game {
     this.hud.setSpectate(null);
     this.hud.setScope(false);
     this.buyMenu.close();
-    this.targetFov = BASE_FOV;
+    this.targetFov = this.baseFov;
     // loadouts: dead players start over, survivors keep their gear
     for (const c of this.characters) {
       if (!c.alive) c.resetLoadout();
@@ -486,7 +517,7 @@ export class Game {
       this.punchPitch += res.kick.pitch;
       this.punchYaw += res.kick.yaw;
       this.viewModel.kick(def);
-      if (def.type === 'sniper') this.targetFov = BASE_FOV;
+      if (def.type === 'sniper') this.targetFov = this.baseFov;
     } else {
       ch.pitch += res.kick.pitch * 0.35;
       ch.yaw += res.kick.yaw * 0.35;
@@ -552,7 +583,7 @@ export class Game {
       this.deathCamYaw = this.player.yaw; this.deathCamPitch = this.player.pitch;
       this.spectateDelay = 2;
       this.hud.setScope(false);
-      this.targetFov = BASE_FOV;
+      this.targetFov = this.baseFov;
       this.buyMenu.close();
     }
     this.checkRoundEnd();
@@ -591,7 +622,8 @@ export class Game {
     this._last = now;
     if (dt > 0.05) dt = 0.05;
     if (this.state === 'playing') this.update(dt);
-    this.render();
+    else if (this.state === 'menu') this.updateMenuCamera(dt);
+    this.render(dt);
   }
 
   update(dt) {
@@ -617,7 +649,7 @@ export class Game {
 
     // ----- player input
     const { dx, dy } = input.consumeMouse();
-    const fovScale = this.camera.fov / BASE_FOV;
+    const fovScale = this.camera.fov / this.baseFov;
     const sens = this.settings.sensitivity * 0.0022 * fovScale;
     const lookDx = this.buyMenu.open ? 0 : dx, lookDy = this.buyMenu.open ? 0 : dy;
     if (p.alive) {
@@ -640,8 +672,8 @@ export class Game {
       let switched = false;
       for (let s = 1; s <= 5; s++) if (input.wasPressed('Digit' + s)) switched = p.selectSlot(s) || switched;
       if (input.wheel !== 0) { p.cycleWeapon(input.wheel > 0 ? 1 : -1); switched = true; }
-      if (switched) { this.audio.weaponSwitch(); this.targetFov = BASE_FOV; }
-      if (input.wasPressed('KeyR') && p.alive && p.weapon?.startReload(this.time)) { this.audio.reload(); this.targetFov = BASE_FOV; }
+      if (switched) { this.audio.weaponSwitch(); this.targetFov = this.baseFov; }
+      if (input.wasPressed('KeyR') && p.alive && p.weapon?.startReload(this.time)) { this.audio.reload(); this.targetFov = this.baseFov; }
       if (input.buttonPressed(2) && p.alive && p.weapon?.def.scope) { p.weapon.toggleZoom(); }
     }
     this.hud.setScoreboard(input.down('Tab'));
@@ -654,8 +686,8 @@ export class Game {
       const playerTrigger = input.button(0) && p.alive && !frozen && !this.buyMenu.open;
       this.fireWeapon(p, playerTrigger);
     }
-    if (p.alive && p.weapon?.def.scope) this.targetFov = p.weapon.scopeFov || BASE_FOV;
-    else this.targetFov = BASE_FOV;
+    if (p.alive && p.weapon?.def.scope) this.targetFov = p.weapon.scopeFov || this.baseFov;
+    else this.targetFov = this.baseFov;
     if (p.alive && p.team === 'CT' && input.down('KeyE')) p.defuseHeld = true;
 
     // recoil recovery
@@ -712,7 +744,7 @@ export class Game {
     // ----- camera
     this.camera.fov += (this.targetFov - this.camera.fov) * Math.min(1, dt * 14);
     this.camera.updateProjectionMatrix();
-    this.hud.setScope(p.alive && this.camera.fov < BASE_FOV - 10);
+    this.hud.setScope(p.alive && this.camera.fov < this.baseFov - 10);
     if (p.alive) {
       this.spectating = null;
       p.getEyePosition(this.camera.position);
@@ -764,7 +796,7 @@ export class Game {
     }
 
     // ----- view model
-    if (p.alive && p.weapon && this.camera.fov > BASE_FOV - 10) {
+    if (p.alive && p.weapon && this.camera.fov > this.baseFov - 10) {
       this.viewModel.setWeapon(p.weapon.key);
       const w = p.weapon;
       const reloadProgress = w.reloadProgress(this.time);
@@ -796,15 +828,38 @@ export class Game {
     input.endFrame();
   }
 
+  /** Slow cinematic orbit over the map behind the main menu. */
+  updateMenuCamera(dt) {
+    this._menuT = (this._menuT || 0) + dt;
+    const t = this._menuT * 0.05;
+    const cx = this.map.width / 2, cz = this.map.depth / 2;
+    this.camera.position.set(cx + Math.cos(t) * 62, 26 + Math.sin(t * 0.7) * 4, cz + Math.sin(t) * 48);
+    this.camera.lookAt(cx + Math.cos(t + 1.2) * 8, 0, cz + Math.sin(t + 1.2) * 8);
+    this.camera.fov = 60;
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
+    this.sky.position.copy(this.camera.position);
+    this.map.update(dt, this._menuT);
+    if (!this._menuSunSet) {
+      this._menuSunSet = true;
+      this.sun.target.position.set(cx, 0, cz);
+      const sc = this.sun.shadow.camera;
+      const r = Math.max(this.map.width, this.map.depth) * 0.62;
+      sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r;
+      sc.updateProjectionMatrix();
+      this.sun.position.set(cx + 55, 95, cz + 35);
+    }
+  }
+
   /** Debug/test helper: advance the simulation without rendering. */
   simulate(seconds, step = 1 / 60) {
     const n = Math.round(seconds / step);
     for (let i = 0; i < n; i++) this.update(step);
   }
 
-  render() {
+  render(dt = 0.016) {
     this.renderer.clear();
-    this.renderer.render(this.scene, this.camera);
+    this.post.render(dt);
     if (this.viewModel && this.state !== 'menu') this.viewModel.render(this.renderer);
   }
 }

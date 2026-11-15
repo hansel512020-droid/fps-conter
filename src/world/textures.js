@@ -136,7 +136,7 @@ export function concreteFloor() {
       // tile seams every 1/2 of the texture (texture tiles 4m -> 2m tiles)
       const su = Math.min(u % 0.5, 0.5 - (u % 0.5)), sv = Math.min(v % 0.5, 0.5 - (v % 0.5));
       const seam = Math.min(su, sv) < 0.006 ? 1 : 0;
-      const stain = Math.pow(n2(0.7, 0.7, 3), 3) * 0.35;
+      const stain = Math.pow(n2(0.7, 0.7, 3), 3) * 0.2;
       const c = base * (1 - seam * 0.45) - stain;
       const tint = 0.97 + (n2(2, 2, 2) - 0.5) * 0.06;
       const h = c - seam * 0.5 + (n(8, 8, 2) - 0.5) * 0.05;

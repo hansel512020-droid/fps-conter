@@ -32,6 +32,37 @@ export class AudioEngine {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.noise = buf;
     this.listener = this.ctx.listener;
+    this.listenerPos = { x: 0, y: 0, z: 0 };
+
+    // shared bus: dry to master + a send into a short "yard" reverb
+    this.bus = this.ctx.createGain();
+    this.bus.connect(this.master);
+    this.reverbSend = this.ctx.createGain();
+    this.reverbSend.gain.value = 0.22;
+    this.reverb = this.ctx.createConvolver();
+    this.reverb.buffer = this._impulse(1.6, 2.6);
+    const verbLP = this.ctx.createBiquadFilter();
+    verbLP.type = 'lowpass'; verbLP.frequency.value = 3500;
+    this.bus.connect(this.reverbSend).connect(this.reverb).connect(verbLP).connect(this.master);
+  }
+
+  /** Synthetic stereo impulse response: early reflections + exponential tail. */
+  _impulse(seconds, decay) {
+    const rate = this.ctx.sampleRate, len = Math.floor(rate * seconds);
+    const buf = this.ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        const t = i / len;
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+      }
+      // a few discrete early reflections (walls of the yard)
+      for (const [ms, g] of [[23, 0.6], [41, 0.45], [67, 0.35], [93, 0.25]]) {
+        const idx = Math.floor((ms + ch * 3) / 1000 * rate);
+        if (idx < len) d[idx] += g * (Math.random() < 0.5 ? -1 : 1);
+      }
+    }
+    return buf;
   }
 
   resume() {
@@ -50,11 +81,12 @@ export class AudioEngine {
       l.setPosition(pos.x, pos.y, pos.z);
       l.setOrientation(forward.x, forward.y, forward.z, up.x, up.y, up.z);
     }
+    this.listenerPos.x = pos.x; this.listenerPos.y = pos.y; this.listenerPos.z = pos.z;
   }
 
   /** Creates output node chain; returns the node sounds should connect to. */
   _out(pos, refDist = 4, maxDist = 90) {
-    if (!pos) return this.master;
+    if (!pos) return this.bus;
     const p = this.ctx.createPanner();
     p.panningModel = 'equalpower';
     p.distanceModel = 'inverse';
@@ -64,7 +96,15 @@ export class AudioEngine {
     if (p.positionX) {
       p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z;
     } else p.setPosition(pos.x, pos.y, pos.z);
-    p.connect(this.master);
+    // air absorption: distant sounds lose their highs
+    const lp = this.listenerPos;
+    const dist = Math.hypot(pos.x - lp.x, pos.y - lp.y, pos.z - lp.z);
+    if (dist > 12) {
+      const f = this.ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = Math.max(900, 16000 / (1 + (dist - 12) * 0.09));
+      p.connect(f).connect(this.bus);
+    } else p.connect(this.bus);
     return p;
   }
 

@@ -136,7 +136,7 @@ html, body {
 
 /* ---------- Menu ---------- */
 #menu { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; }
-.menu-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 20%, #1c2a3a 0%, #070a0f 70%); }
+.menu-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, rgba(7,10,15,0.15) 0%, rgba(7,10,15,0.55) 60%, rgba(7,10,15,0.85) 100%); }
 .menu-panel {
   position: relative; width: min(520px, 92vw); padding: 36px 40px;
   background: rgba(10, 14, 20, 0.85); border: 1px solid var(--hud-border); border-radius: 12px;
@@ -146,6 +146,7 @@ html, body {
 .menu-panel h1 span { color: var(--t-color); margin-left: 10px; }
 .subtitle { margin: 6px 0 26px; opacity: 0.65; font-size: 15px; letter-spacing: 1px; }
 .menu-row { margin-bottom: 18px; }
+.menu-row.two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .menu-row label { display: flex; justify-content: space-between; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; margin-bottom: 6px; }
 .seg { display: flex; border: 1px solid var(--hud-border); border-radius: 6px; overflow: hidden; }
 .seg button {

@@ -34,7 +34,10 @@ export class Effects {
           gl_PointSize = size * uScale / max(1.0, -mv.z); gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `
         uniform sampler2D uTex; varying vec3 vColor;
-        void main() { vec4 t = texture2D(uTex, gl_PointCoord); if (t.a < 0.05) discard; gl_FragColor = vec4(vColor * t.rgb, t.a); }`,
+        void main() { vec4 t = texture2D(uTex, gl_PointCoord); if (t.a < 0.05) discard; gl_FragColor = vec4(vColor * t.rgb, t.a);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
       transparent: true, depthWrite: false, blending: THREE.NormalBlending,
     });
     this.particles = new THREE.Points(geo, pmat);

@@ -82,6 +82,24 @@
           <button data-diff="hard">Difícil</button>
         </div>
       </div>
+      <div class="menu-row">
+        <label>Calidad gráfica</label>
+        <div class="seg" id="quality">
+          <button data-quality="low">Bajo</button>
+          <button data-quality="medium" class="active">Medio</button>
+          <button data-quality="high">Alto</button>
+        </div>
+      </div>
+      <div class="menu-row two">
+        <div>
+          <label>Campo de visión <span id="fov-val">78</span></label>
+          <input id="fov" type="range" min="65" max="100" step="1" value="78" />
+        </div>
+        <div>
+          <label>Volumen <span id="vol-val">80</span></label>
+          <input id="vol" type="range" min="0" max="1" step="0.05" value="0.8" />
+        </div>
+      </div>
       <button id="play-btn" class="primary">JUGAR</button>
       <div class="controls">
         <div><b>WASD</b> mover</div><div><b>Shift</b> caminar</div><div><b>Ctrl</b> agacharse</div>
