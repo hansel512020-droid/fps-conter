@@ -131,6 +131,10 @@ export class AudioEngine {
       case 'knife':
         this._noiseBurst(out, { dur: 0.08, gain: 0.25, lp: 7000, hp: 1500, decay: 0.02 });
         break;
+      case 'heavy':
+        this._noiseBurst(out, { dur: 0.22, gain: 0.8, lp: 3800, hp: 150, decay: 0.07 });
+        this._thump(out, { f0: 170, f1: 40, dur: 0.16, gain: 0.8 });
+        break;
       default: // rifle
         this._noiseBurst(out, { dur: 0.2, gain: 0.7, lp: 4200, hp: 200, decay: 0.06 });
         this._thump(out, { f0: 180, f1: 45, dur: 0.11, gain: 0.65 });
@@ -192,6 +196,84 @@ export class AudioEngine {
   weaponSwitch() {
     if (!this.ctx) return;
     this._noiseBurst(this.master, { dur: 0.05, gain: 0.15, lp: 4000, hp: 1000, decay: 0.012 });
+  }
+
+  explosion(pos) {
+    if (!this.ctx) return;
+    const out = this._out(pos, 12, 300);
+    this._noiseBurst(out, { dur: 1.2, gain: 1.2, lp: 1800, hp: 40, decay: 0.3 });
+    this._thump(out, { f0: 90, f1: 25, dur: 0.7, gain: 1.2 });
+    this._noiseBurst(out, { dur: 0.3, gain: 0.6, lp: 6000, hp: 800, decay: 0.08 });
+  }
+
+  flashbang(pos) {
+    if (!this.ctx) return;
+    const out = this._out(pos, 10, 200);
+    this._noiseBurst(out, { dur: 0.25, gain: 0.9, lp: 8000, hp: 1500, decay: 0.08 });
+    this._thump(out, { f0: 2400, f1: 2000, dur: 0.6, gain: 0.25, type: 'sine' });
+  }
+
+  /** Ringing in the ears after a close flash. */
+  ringing(duration = 2) {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    o.type = 'sine'; o.frequency.value = 3200;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.12, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+    o.connect(g).connect(this.master);
+    o.start(t0); o.stop(t0 + duration + 0.05);
+  }
+
+  smokePop(pos) {
+    if (!this.ctx) return;
+    const out = this._out(pos, 5, 60);
+    this._thump(out, { f0: 300, f1: 90, dur: 0.15, gain: 0.4 });
+    this._noiseBurst(out, { dur: 1.5, gain: 0.12, lp: 1500, hp: 200, decay: 0.5 });
+  }
+
+  bounce(pos) {
+    if (!this.ctx || !this._voice(0.1)) return;
+    const out = this._out(pos, 3, 40);
+    this._thump(out, { f0: 900, f1: 500, dur: 0.05, gain: 0.15, type: 'triangle' });
+  }
+
+  bombBeep(pos, pitch = 1) {
+    if (!this.ctx) return;
+    const out = this._out(pos, 6, 120);
+    const t0 = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    o.type = 'square'; o.frequency.value = 1800 * pitch;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.06, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08);
+    o.connect(g).connect(out);
+    o.start(t0); o.stop(t0 + 0.09);
+  }
+
+  plantClick(pos) {
+    if (!this.ctx) return;
+    const out = this._out(pos, 3, 30);
+    this._thump(out, { f0: 1200, f1: 800, dur: 0.03, gain: 0.08, type: 'square' });
+  }
+
+  pickup(pos) {
+    if (!this.ctx) return;
+    this._noiseBurst(this._out(pos, 3, 30), { dur: 0.06, gain: 0.2, lp: 3000, hp: 500, decay: 0.02 });
+  }
+
+  buy() {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime;
+    [880, 1320].forEach((f, i) => {
+      const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0 + i * 0.06);
+      g.gain.exponentialRampToValueAtTime(0.1, t0 + i * 0.06 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + i * 0.06 + 0.12);
+      o.connect(g).connect(this.master); o.start(t0 + i * 0.06); o.stop(t0 + i * 0.06 + 0.13);
+    });
   }
 
   ui(kind) {

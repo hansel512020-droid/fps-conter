@@ -74,6 +74,96 @@ export function buildWeaponMesh(key) {
       muzzle.position.set(0, 0.01, -0.42);
       break;
     }
+    case 'heavy_pistol': {
+      g.add(box(0.04, 0.05, 0.25, 'steel', 0, 0.025, -0.06));        // long slide
+      g.add(box(0.038, 0.032, 0.2, 'metal', 0, -0.015, -0.04));      // frame
+      g.add(cyl(0.009, 0.03, 'metal', 0, 0.025, -0.19));
+      g.add(box(0.034, 0.12, 0.05, 'polymer', 0, -0.09, 0.04, -0.22)); // grip
+      g.add(box(0.014, 0.035, 0.035, 'metal', 0, -0.05, -0.02));
+      g.add(box(0.014, 0.02, 0.015, 'metal', 0, 0.06, 0.05));
+      g.add(box(0.008, 0.015, 0.012, 'metal', 0, 0.058, -0.17));
+      muzzle.position.set(0, 0.025, -0.21);
+      break;
+    }
+    case 'shotgun': {
+      g.add(box(0.07, 0.085, 0.3, 'metal', 0, 0, 0.0));              // receiver
+      g.add(cyl(0.016, 0.55, 'steel', 0, 0.03, -0.42));              // barrel
+      g.add(cyl(0.02, 0.45, 'metal', 0, -0.02, -0.38));              // tube magazine
+      g.add(box(0.06, 0.07, 0.16, 'wood', 0, -0.0, -0.3));           // pump
+      g.add(box(0.03, 0.03, 0.03, 'metal', 0, 0.065, -0.66));        // bead sight
+      g.add(box(0.045, 0.12, 0.06, 'wood', 0, -0.1, 0.1, -0.3));     // grip
+      g.add(box(0.05, 0.09, 0.3, 'wood', 0, -0.03, 0.3));            // stock
+      g.add(box(0.06, 0.11, 0.04, 'dark', 0, -0.04, 0.46));
+      muzzle.position.set(0, 0.03, -0.7);
+      break;
+    }
+    case 'sniper': {
+      g.add(box(0.07, 0.09, 0.55, 'polymer', 0, -0.005, 0.0));       // body/chassis
+      g.add(cyl(0.014, 0.7, 'steel', 0, 0.02, -0.6));                // long barrel
+      g.add(cyl(0.025, 0.08, 'metal', 0, 0.02, -0.93));              // muzzle brake
+      g.add(box(0.05, 0.2, 0.08, 'metal', 0, -0.13, -0.12, 0.05));   // magazine
+      g.add(box(0.045, 0.13, 0.06, 'polymer', 0, -0.1, 0.12, -0.3)); // grip
+      g.add(box(0.05, 0.08, 0.3, 'polymer', 0, -0.02, 0.4));         // stock
+      g.add(box(0.06, 0.12, 0.05, 'dark', 0, -0.03, 0.56));
+      g.add(box(0.03, 0.04, 0.16, 'metal', 0, 0.065, -0.05));        // scope mount
+      g.add(cyl(0.028, 0.3, 'metal', 0, 0.11, -0.05));               // scope tube
+      g.add(cyl(0.036, 0.06, 'metal', 0, 0.11, -0.22));              // objective
+      g.add(cyl(0.034, 0.05, 'metal', 0, 0.11, 0.12));               // ocular
+      const lens = cyl(0.03, 0.005, 'steel', 0, 0.11, -0.255);
+      lens.material = new THREE.MeshStandardMaterial({ color: 0x3a6cff, roughness: 0.1, metalness: 0.9 });
+      g.add(lens);
+      g.add(box(0.012, 0.03, 0.05, 'metal', 0.0, -0.01, -0.0, 0, 0, 0.9)); // bolt handle
+      muzzle.position.set(0, 0.02, -0.98);
+      break;
+    }
+    case 'grenade_he': {
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), mat('dark'));
+      body.scale.set(1, 1.25, 1);
+      g.add(body);
+      g.add(cyl(0.02, 0.03, 'steel', 0, 0.065, 0, 'y'));
+      g.add(box(0.012, 0.06, 0.025, 'steel', 0.03, 0.045, 0, 0, 0, -0.3)); // spoon
+      muzzle.position.set(0, 0, 0);
+      break;
+    }
+    case 'grenade_flash': {
+      g.add(cyl(0.028, 0.11, 'steel', 0, 0, 0, 'y'));
+      g.add(cyl(0.018, 0.025, 'metal', 0, 0.065, 0, 'y'));
+      g.add(box(0.012, 0.06, 0.025, 'steel', 0.03, 0.045, 0, 0, 0, -0.3));
+      const band = cyl(0.029, 0.02, 'metal', 0, -0.02, 0, 'y');
+      band.material = new THREE.MeshStandardMaterial({ color: 0x3a6ea8, roughness: 0.5 });
+      g.add(band);
+      muzzle.position.set(0, 0, 0);
+      break;
+    }
+    case 'grenade_smoke': {
+      g.add(cyl(0.033, 0.13, 'metal', 0, 0, 0, 'y'));
+      g.add(cyl(0.018, 0.025, 'metal', 0, 0.075, 0, 'y'));
+      g.add(box(0.012, 0.06, 0.025, 'steel', 0.035, 0.05, 0, 0, 0, -0.3));
+      const band = cyl(0.034, 0.03, 'metal', 0, -0.03, 0, 'y');
+      band.material = new THREE.MeshStandardMaterial({ color: 0x8a8f94, roughness: 0.6 });
+      g.add(band);
+      muzzle.position.set(0, 0, 0);
+      break;
+    }
+    case 'bomb': {
+      g.add(box(0.28, 0.1, 0.17, 'tan', 0, 0.05, 0));                // C4 block
+      g.add(box(0.1, 0.03, 0.08, 'dark', -0.05, 0.11, 0));           // timer box
+      const screen = box(0.07, 0.005, 0.035, 'dark', -0.05, 0.127, 0);
+      screen.material = new THREE.MeshStandardMaterial({ color: 0x113311, emissive: 0x33ff55, emissiveIntensity: 1.2, roughness: 0.4 });
+      g.add(screen);
+      const led = box(0.015, 0.012, 0.015, 'dark', 0.08, 0.115, -0.04);
+      led.name = 'led';
+      led.material = new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0xff2020, emissiveIntensity: 0.3 });
+      g.add(led);
+      for (let i = 0; i < 3; i++) {
+        const w = cyl(0.004, 0.12, 'metal', 0.04 + i * 0.03, 0.1, 0.03 + i * 0.01, 'z');
+        w.material = new THREE.MeshStandardMaterial({ color: [0xff3030, 0x30c0ff, 0xffd030][i], roughness: 0.6 });
+        w.rotation.x = 0.4;
+        g.add(w);
+      }
+      muzzle.position.set(0, 0.05, 0);
+      break;
+    }
     case 'pistol': {
       g.add(box(0.035, 0.045, 0.2, 'metal', 0, 0.02, -0.04));        // slide
       g.add(box(0.034, 0.03, 0.17, 'polymer', 0, -0.015, -0.03));    // frame

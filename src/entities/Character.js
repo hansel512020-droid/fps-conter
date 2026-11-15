@@ -35,6 +35,9 @@ export class Character {
     this.health = 100;
     this.armor = 0;
     this.helmet = false;
+    this.kit = false;
+    this.lossStreak = 0;
+    this.blindUntil = -10;
     this.alive = true;
     this.deathTime = 0;
     this.money = 800;
@@ -53,34 +56,70 @@ export class Character {
   /* ---------- weapons ---------- */
   giveWeapon(key, select = true) {
     const existing = this.weapons.find((w) => w.key === key);
-    if (existing) { existing.refill(); return existing; }
+    if (existing) {
+      if (existing.isGrenade) existing.mag = Math.min(existing.def.maxCount, existing.mag + 1);
+      else existing.refill();
+      return existing;
+    }
+    const current = this.weapon;
     const w = new Weapon(key);
-    // replace a weapon occupying the same slot (except knife)
-    const idx = this.weapons.findIndex((o) => o.def.slot === w.def.slot && o.def.slot !== 3);
+    // replace a weapon occupying the same slot (grenades and knife stack/stay)
+    const idx = w.isGrenade ? -1 : this.weapons.findIndex((o) => o.def.slot === w.def.slot && o.def.slot !== 3);
     if (idx >= 0) this.weapons.splice(idx, 1, w); else this.weapons.push(w);
     this.weapons.sort((a, b) => SLOT_ORDER.indexOf(a.key) - SLOT_ORDER.indexOf(b.key));
+    const keepIdx = this.weapons.indexOf(current);
+    this.weaponIndex = keepIdx >= 0 ? keepIdx : 0;
     if (select) this.selectWeapon(this.weapons.indexOf(w));
-    else if (this.weaponIndex >= this.weapons.length) this.weaponIndex = 0;
     return w;
   }
+  removeWeapon(w) {
+    const i = this.weapons.indexOf(w);
+    if (i < 0) return;
+    const wasCurrent = i === this.weaponIndex;
+    this.weapons.splice(i, 1);
+    if (this.weaponIndex > i) this.weaponIndex--;
+    if (wasCurrent) { this.weaponIndex = -1; this.selectBest(); }
+    if (this.weaponIndex >= this.weapons.length) this.weaponIndex = Math.max(0, this.weapons.length - 1);
+  }
+  hasWeapon(key) { return this.weapons.some((w) => w.key === key); }
   get weapon() { return this.weapons[this.weaponIndex] || null; }
+  get primary() { return this.weapons.find((w) => w.def.slot === 1) || null; }
+  get hasBomb() { return this.weapons.some((w) => w.isBomb); }
+  get grenades() { return this.weapons.filter((w) => w.isGrenade); }
   selectWeapon(i, now = this.game.time) {
     if (i < 0 || i >= this.weapons.length || i === this.weaponIndex) return false;
     this.weaponIndex = i;
     this.weapons[i].draw(now);
     return true;
   }
+  /** Selects the next weapon in a slot (cycles within the slot, e.g. grenades). */
   selectSlot(slot) {
-    const i = this.weapons.findIndex((w) => w.def.slot === slot);
-    return i >= 0 ? this.selectWeapon(i) : false;
+    const idxs = this.weapons.map((w, i) => (w.def.slot === slot ? i : -1)).filter((i) => i >= 0);
+    if (!idxs.length) return false;
+    const cur = idxs.indexOf(this.weaponIndex);
+    const next = idxs[(cur + 1) % idxs.length];
+    return this.selectWeapon(next);
   }
   selectBest() {
-    this.selectWeapon(0);
+    // best gun first, then knife; never auto-select grenades or the bomb
+    const i = this.weapons.findIndex((w) => w.isGun);
+    const j = i >= 0 ? i : this.weapons.findIndex((w) => w.isMelee);
+    const k = j >= 0 ? j : 0;
+    if (k !== this.weaponIndex) { this.weaponIndex = k; this.weapons[k]?.draw(this.game.time); }
   }
   cycleWeapon(dir) {
     if (this.weapons.length < 2) return;
     const i = (this.weaponIndex + dir + this.weapons.length) % this.weapons.length;
     this.selectWeapon(i);
+  }
+  /** Removes everything but the knife and gives the default pistol. */
+  resetLoadout() {
+    this.weapons = [];
+    this.weaponIndex = 0;
+    this.giveWeapon('knife', false);
+    this.giveWeapon('pistol', false);
+    this.armor = 0; this.helmet = false; this.kit = false;
+    this.selectBest();
   }
 
   /* ---------- geometry ---------- */
@@ -94,7 +133,9 @@ export class Character {
   getFlatForward(out = new THREE.Vector3()) { return out.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)); }
   getRight(out = new THREE.Vector3()) { return out.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw)); }
   get maxSpeed() {
-    const wm = this.weapon ? this.weapon.def.speed : 1;
+    const w = this.weapon;
+    let wm = w ? w.def.speed : 1;
+    if (w && w.zoom > 0 && w.def.scopedSpeed) wm *= w.def.scopedSpeed;
     const base = this.crouchT > 0.5 ? MOVE.crouch : this.walking ? MOVE.walk : MOVE.run;
     return base * wm;
   }
@@ -121,15 +162,19 @@ export class Character {
     this.alive = true;
     this.crouching = false; this.crouchT = 0;
     this.lastAttacker = null;
-    for (const w of this.weapons) w.refill();
+    this.blindUntil = -10;
+    for (const w of this.weapons) if (!w.isGrenade) w.refill();
     this.selectBest();
     if (this.model) this.model.reset();
   }
 
   takeDamage(amount, zone, attacker, weaponKey) {
     if (!this.alive) return 0;
+    // friendly fire is off (bullets still stop on teammates, they just don't hurt)
+    if (attacker && attacker !== this && attacker.team === this.team && !this.game.settings.friendlyFire) return 0;
     let dmg = amount;
-    if (zone === 'head') dmg *= attacker?.weapon?.def.hsMult ?? 4;
+    const hsMult = weaponKey && this.game.weaponDef(weaponKey)?.hsMult;
+    if (zone === 'head') dmg *= hsMult ?? attacker?.weapon?.def.hsMult ?? 4;
     else dmg *= ZONE_MULT[zone] ?? 1;
     // armor: kevlar covers torso, helmet covers head
     const protectedZone = (zone === 'head' && this.helmet) || ((zone === 'chest' || zone === 'stomach') && this.armor > 0);

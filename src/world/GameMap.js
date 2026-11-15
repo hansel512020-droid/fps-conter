@@ -32,6 +32,13 @@ export class GameMap {
     this.sites = { A: [], B: [] };
     this.lights = [];
     this._build();
+    this.spawnCenter = {};
+    for (const team of ['T', 'CT']) {
+      const pts = this.spawnPoints(team);
+      const c = new THREE.Vector3();
+      for (const p of pts) c.add(p.pos);
+      this.spawnCenter[team] = pts.length ? c.divideScalar(pts.length) : c;
+    }
   }
 
   /* ---------- queries ---------- */

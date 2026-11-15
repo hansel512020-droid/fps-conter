@@ -150,6 +150,68 @@ export class Effects {
     f.t = 0.05;
   }
 
+  explosion(pos) {
+    const p = pos.clone(); p.y = Math.max(p.y, 0.2);
+    // fireball
+    for (let i = 0; i < 60; i++) {
+      const v = new THREE.Vector3((Math.random() - 0.5), Math.random() * 0.8, (Math.random() - 0.5)).normalize().multiplyScalar(3 + Math.random() * 9);
+      const c = new THREE.Color().setHSL(0.06 + Math.random() * 0.05, 1, 0.5 + Math.random() * 0.2);
+      this._emit(p, v, c, 0.25 + Math.random() * 0.35, 0.5 + Math.random() * 0.6, 2);
+    }
+    // sparks
+    for (let i = 0; i < 40; i++) {
+      const v = new THREE.Vector3((Math.random() - 0.5), Math.random(), (Math.random() - 0.5)).normalize().multiplyScalar(8 + Math.random() * 14);
+      this._emit(p, v, new THREE.Color(1, 0.85, 0.5), 0.4 + Math.random() * 0.6, 0.06, 14);
+    }
+    // dust / smoke
+    for (let i = 0; i < 50; i++) {
+      const v = new THREE.Vector3((Math.random() - 0.5), Math.random() * 0.5 + 0.1, (Math.random() - 0.5)).normalize().multiplyScalar(2 + Math.random() * 6);
+      const g = 0.25 + Math.random() * 0.2;
+      this._emit(p, v, new THREE.Color(g, g * 0.95, g * 0.9), 1.2 + Math.random() * 1.2, 0.9 + Math.random() * 0.9, -0.6);
+    }
+    // debris
+    for (let i = 0; i < 20; i++) {
+      const v = new THREE.Vector3((Math.random() - 0.5), Math.random() * 1.2, (Math.random() - 0.5)).normalize().multiplyScalar(5 + Math.random() * 8);
+      this._emit(p, v, new THREE.Color(0.2, 0.18, 0.16), 1 + Math.random(), 0.12, 18);
+    }
+    for (let i = 0; i < 3; i++) {
+      const f = this.flashes[this.fNext];
+      this.fNext = (this.fNext + 1) % this.flashes.length;
+      f.sprite.visible = true;
+      f.sprite.position.copy(p).setY(p.y + 0.8 + i * 0.6).add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 0, (Math.random() - 0.5) * 1.2));
+      f.sprite.scale.setScalar(7 + i * 2);
+      f.sprite.material.rotation = Math.random() * 6.28;
+      f.light.position.copy(p).setY(p.y + 1.2);
+      f.light.intensity = i === 0 ? 500 : 0;
+      f.light.distance = 35;
+      f.t = 0.22 + i * 0.05;
+    }
+    // scorch mark
+    const d = this.decals[this.dNext];
+    this.dNext = (this.dNext + 1) % MAX_DECALS;
+    d.visible = true;
+    d.position.set(p.x, 0.012, p.z);
+    d.rotation.set(-Math.PI / 2, 0, Math.random() * 6.28);
+    d.scale.setScalar(3.2);
+  }
+
+  flashBurst(pos) {
+    const f = this.flashes[this.fNext];
+    this.fNext = (this.fNext + 1) % this.flashes.length;
+    f.sprite.visible = true;
+    f.sprite.position.copy(pos);
+    f.sprite.scale.setScalar(4);
+    f.sprite.material.rotation = Math.random() * 6.28;
+    f.light.position.copy(pos);
+    f.light.intensity = 600;
+    f.light.distance = 40;
+    f.t = 0.12;
+    for (let i = 0; i < 24; i++) {
+      const v = new THREE.Vector3((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).normalize().multiplyScalar(6 + Math.random() * 10);
+      this._emit(pos, v, new THREE.Color(1, 1, 0.9), 0.2 + Math.random() * 0.2, 0.08, 6);
+    }
+  }
+
   /* ---------- update ---------- */
   update(dt) {
     this.time += dt;
@@ -182,7 +244,8 @@ export class Effects {
     for (const f of this.flashes) {
       if (f.t <= 0) continue;
       f.t -= dt;
-      if (f.t <= 0) { f.sprite.visible = false; f.light.intensity = 0; }
+      if (f.t <= 0) { f.sprite.visible = false; f.light.intensity = 0; f.light.distance = 10; }
+      else f.light.intensity *= Math.exp(-dt * 10);
     }
   }
 

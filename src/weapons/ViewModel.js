@@ -5,8 +5,15 @@ const REST = {
   rifle: { pos: [0.15, -0.15, -0.30], rot: [0.03, 0.16, -0.05] },
   carbine: { pos: [0.15, -0.15, -0.30], rot: [0.03, 0.16, -0.05] },
   smg: { pos: [0.14, -0.14, -0.28], rot: [0.03, 0.16, -0.05] },
+  shotgun: { pos: [0.15, -0.15, -0.30], rot: [0.03, 0.16, -0.05] },
+  sniper: { pos: [0.15, -0.16, -0.30], rot: [0.03, 0.14, -0.05] },
   pistol: { pos: [0.14, -0.12, -0.28], rot: [0, 0.0, 0] },
+  heavy_pistol: { pos: [0.14, -0.12, -0.28], rot: [0, 0.0, 0] },
   knife: { pos: [0.17, -0.13, -0.27], rot: [0.25, -0.75, 0.35] },
+  grenade_he: { pos: [0.19, -0.14, -0.3], rot: [0.3, -0.5, 0.2] },
+  grenade_flash: { pos: [0.19, -0.14, -0.3], rot: [0.3, -0.5, 0.2] },
+  grenade_smoke: { pos: [0.19, -0.14, -0.3], rot: [0.3, -0.5, 0.2] },
+  bomb: { pos: [0.1, -0.2, -0.34], rot: [0.45, -0.25, 0.05] },
 };
 
 const SLEEVE = { T: 0x4a4030, CT: 0x22303f };
@@ -90,6 +97,14 @@ export class ViewModel {
     } else if (key === 'knife') {
       parts.push(this._hand([0.0, -0.015, 0.07], [0.06, 0.07, 0.1], glove));
       parts.push(this._limb([0.02, -0.06, 0.12], [0.24, -0.42, 0.44], 0.08, sleeve));
+    } else if (key.startsWith('grenade')) {
+      parts.push(this._hand([0.0, -0.045, 0.02], [0.075, 0.07, 0.09], glove));
+      parts.push(this._limb([0.02, -0.09, 0.08], [0.24, -0.42, 0.44], 0.08, sleeve));
+    } else if (key === 'bomb') {
+      parts.push(this._hand([0.16, 0.02, 0.02], [0.06, 0.08, 0.1], glove));
+      parts.push(this._limb([0.18, -0.02, 0.08], [0.3, -0.4, 0.42], 0.08, sleeve));
+      parts.push(this._hand([-0.16, 0.02, 0.02], [0.06, 0.08, 0.1], glove));
+      parts.push(this._limb([-0.18, -0.02, 0.08], [-0.28, -0.4, 0.42], 0.08, sleeve));
     } else {
       // rifles / smg: right hand on the grip, left hand on the handguard
       parts.push(this._hand([0.0, -0.1, 0.07], [0.075, 0.11, 0.08], glove, [-0.25, 0, 0]));
@@ -117,8 +132,11 @@ export class ViewModel {
 
   resize(aspect) { this.camera.aspect = aspect; this.camera.updateProjectionMatrix(); }
 
+  throwAnim() { this.throwT = 0.4; }
+
   kick(def) {
-    const s = def.type === 'pistol' ? 0.6 : def.type === 'melee' ? 1.2 : 1;
+    if (def.type === 'grenade') { this.throwAnim(); return; }
+    const s = def.type === 'pistol' ? 0.6 : def.type === 'melee' ? 1.2 : def.type === 'sniper' || def.type === 'shotgun' ? 2.2 : 1;
     this.recoilZ += 0.045 * s;
     this.recoilRot += 0.07 * s;
     this.recoilSide += (Math.random() - 0.5) * 0.02;
@@ -179,16 +197,25 @@ export class ViewModel {
     }
     // crouch: weapon slightly closer
     const crouchZ = 0.02 * s.crouchT;
+    // grenade throw: wind back then snap forward
+    let thZ = 0, thRot = 0, thY = 0;
+    if (this.throwT > 0) {
+      this.throwT -= dt;
+      const t = 1 - Math.max(0, this.throwT) / 0.4;
+      const back = t < 0.3 ? t / 0.3 : Math.max(0, 1 - (t - 0.3) / 0.25);
+      thZ = 0.12 * back; thRot = -0.9 * back; thY = 0.08 * back;
+      if (t > 0.3 && t < 0.6) thZ -= 0.15 * ((t - 0.3) / 0.3);
+    }
 
     const r = this.restPos || new THREE.Vector3();
     this.rig.position.set(
       r.x + this.swayX + bobX + this.recoilSide,
-      r.y + this.swayY + bobY + rlY + drawY - landDip - (s.onGround ? 0 : 0.01),
-      r.z + this.recoilZ + crouchZ,
+      r.y + this.swayY + bobY + rlY + drawY + thY - landDip - (s.onGround ? 0 : 0.01),
+      r.z + this.recoilZ + crouchZ + thZ,
     );
     const rr = this.restRot || new THREE.Euler();
     this.rig.rotation.set(
-      rr.x - this.recoilRot + rlRot + drawRot + this.swayY * 1.5,
+      rr.x - this.recoilRot + rlRot + drawRot + thRot + this.swayY * 1.5,
       rr.y + this.swayX * 1.2,
       rr.z + rlRotZ + bobX * 1.5,
     );
